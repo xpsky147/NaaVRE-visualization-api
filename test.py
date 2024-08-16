@@ -11,10 +11,11 @@ class TestAPI(unittest.TestCase):
     def test_create_visualization(self):
         response = self.client.post(
             "/visualization_ingress_service",
-            json={"name": "test-visualization"}
+            json={"name": "test-w"}
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("visualization_url", response.json())
+        print("Visualization URL:", response.json()["visualization_url"])
 
     def test_delete_visualization(self):
         # First, create the visualization to ensure it exists
@@ -32,8 +33,8 @@ class TestAPI(unittest.TestCase):
         # Cleanup resources
         try:
             delete_k8s_resources("test-visualization")
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error during tearDown: {e}")
 
 if __name__ == '__main__':
     unittest.main()
