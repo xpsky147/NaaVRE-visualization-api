@@ -5,7 +5,6 @@ from services.k8s_service import create_k8s_resources, delete_k8s_resources
 
 class TestAPI(unittest.TestCase):
     def setUp(self):
-        # 创建一个客户端实例
         self.client = TestClient(app)
 
     def test_create_visualization(self):
