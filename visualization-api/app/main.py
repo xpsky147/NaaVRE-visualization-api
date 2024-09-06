@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from services.k8s_service import create_k8s_resources, delete_k8s_resources
+from .services.k8s_service import create_k8s_resources, delete_k8s_resources
 import logging
 
 app = FastAPI()
