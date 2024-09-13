@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: qcdis/visualization-api
+  repository: xpsky147/visualization-api
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -59,6 +59,8 @@ ingress:
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
+
+ingressDomain: "localhost"
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
