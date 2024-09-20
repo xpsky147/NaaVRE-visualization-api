@@ -60,7 +60,7 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-ingressDomain: "localhost"
+ingressDomain: "viz.naavre.example.com"
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
