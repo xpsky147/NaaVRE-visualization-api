@@ -54,8 +54,11 @@ def load_k8s_config():
 
 def create_k8s_resources(name: str) -> str:
     namespace = get_namespace()
-    service_name = f"{name}-svc"
-    ingress_name = f"{name}-ing"
+
+    shorter_name = name[:63]
+    service_name = f"{shorter_name}-svc"
+    ingress_name = f"{shorter_name}-ing"
+
     # ingress_domain设置
     ingress_domain = os.getenv('INGRESS_DOMAIN', 'your-ingress-domain')
 
