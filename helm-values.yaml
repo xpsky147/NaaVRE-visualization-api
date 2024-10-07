@@ -1,0 +1,32 @@
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  hosts:
+    - host: naavre-dev.minikube.test
+      paths:
+        - path: /visualization-api(/|$)(.*)
+          pathType: ImplementationSpecific
+
+conf:
+  rootPath: /visualization-api
+
+env:
+  BASE_IMAGE_TAGS_URL: "https://github.com/QCDIS/NaaVRE-flavors/releases/latest/download/base_image_tags.json"
+  DEBUG: "true"
+  OIDC_CONFIGURATION_URL: "https://naavre-dev.minikube.test/auth/realms/vre/.well-known/openid-configuration"
+  VERIFY_SSL: "false"
+
+
+
+
+livenessProbe:
+  httpGet:
+    path: /docs
+    port: http
+readinessProbe:
+  httpGet:
+    path: /docs
+    port: http
