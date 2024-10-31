@@ -1,26 +1,27 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from .services.k8s_service import create_k8s_resources, delete_k8s_resources
 import logging
+from .services.k8s_service import K8sResourceManager
+import asyncio
 
 app = FastAPI()
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO) 
 logger = logging.getLogger(__name__)
 
 class VisualizationRequest(BaseModel):
     name: str
+    base_url: str
 
 class VisualizationResponse(BaseModel):
     visualization_url: str
 
+k8s_manager = K8sResourceManager()
 
-@app.post("/visualization_ingress_service", response_model=VisualizationResponse)
+@app.post("/visualizations", response_model=VisualizationResponse)
 async def create_visualization(request: VisualizationRequest):
     try:
-        logger.info(f"Received request to create visualization for {request.name}")
-        url = create_k8s_resources(request.name)
+        logger.info(f"Received request to create visualization for workflow {request.name}")
+        url = await k8s_manager.create_resources(request.name, request.base_url)  # 加上 await
         return VisualizationResponse(visualization_url=url)
     except ValueError as e:
         logger.error(f"Bad Request: {e}")
@@ -29,11 +30,11 @@ async def create_visualization(request: VisualizationRequest):
         logger.error(f"Internal Server Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/visualization_ingress_service")
-async def delete_visualization(id: str):
+@app.delete("/visualizations")
+async def delete_visualization(name: str, base_url: str):
     try:
-        logger.info(f"Received request to delete visualization for {id}")
-        delete_k8s_resources(id)
+        logger.info(f"Received request to delete visualization for workflow {name}")
+        await k8s_manager.delete_resources(name, base_url)
         return {"detail": "Resource deleted successfully"}
     except Exception as e:
         logger.error(f"Internal Server Error: {e}")
