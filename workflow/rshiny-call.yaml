@@ -1,0 +1,69 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: n-a-a-vre-im-zhuyh-gmail-com-
+  labels:
+    vlab_slug: n-a-a-vre
+spec:
+    entrypoint: n-a-a-vre-im-zhuyh-gmail-com
+    serviceAccountName: executor
+    onExit: cleanup-template
+    volumeClaimTemplates:
+    - metadata:
+        name: workdir
+      spec:
+        accessModes: [ "ReadWriteMany" ]
+        persistentVolumeReclaimPolicy: Delete
+        resources:
+          requests:
+            storage: 1Gi
+    templates:
+    - name: n-a-a-vre-im-zhuyh-gmail-com
+      dag:
+        tasks:
+        - name: visualize-api-im-zhuyh-gmail-com-91f4b9d
+          template: visualize-api-im-zhuyh-gmail-com-91f4b9d-tmp
+        - name: api-creater
+          template: api-creater-template
+    - name: visualize-api-im-zhuyh-gmail-com-91f4b9d-tmp
+      outputs:
+        parameters:
+          - name: x_aa72edb
+            valueFrom:
+              path: /tmp/x_aa72edb.json
+      container:
+        image: "jinseob2kim/docker-rshiny"
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: workdir
+          mountPath: /tmp/data
+        command: ["/usr/bin/supervisord"]
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3838
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      metadata:
+        labels:
+          app: naavre-visualizer-notebook
+    - name: api-creater-template
+      container:
+        image: "xpsky147/viz-api-creater"
+        command: ["python"]
+        args: ["-u", "/app/create_viz.py"]
+        env:
+        - name: WORKFLOW_NAME
+          value: "{{workflow.name}}"
+        - name: TARGET_PORT
+          value: "3838"
+        - name: NEEDS_BASE_PATH
+          value: "false"
+    - name: cleanup-template
+      container:
+        image: "xpsky147/viz-cleaner"
+        command: ["python"]
+        args: ["-u", "/app/cleanup.py"]
+        env:
+        - name: WORKFLOW_NAME
+          value: "{{workflow.name}}"

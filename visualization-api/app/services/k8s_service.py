@@ -16,7 +16,10 @@ class K8sResourceNames:
     ingress_name: str
     namespace: str
     original_name: str
+    label: str
     base_url: str
+    needs_base_path: bool
+    target_port: int
 
 class K8sResourceManager:
 
@@ -35,7 +38,7 @@ class K8sResourceManager:
         self.core_v1 = client.CoreV1Api()
         self.networking_v1 = client.NetworkingV1Api()
 
-    def _generate_resource_names(self, name: str, base_url: str) -> K8sResourceNames:
+    def _generate_resource_names(self, name: str, label: str, base_url: str, needs_base_path: bool, target_port: int) -> K8sResourceNames:
         # generate resource names
         shorter_name = name[:50]
         return K8sResourceNames(
@@ -43,7 +46,10 @@ class K8sResourceManager:
             ingress_name=f"viz-ing-{shorter_name}",
             namespace=self.namespace,
             original_name=name,
-            base_url = base_url
+            label = label,
+            base_url = base_url,
+            needs_base_path = needs_base_path,
+            target_port = target_port
         )
 
     async def _check_resources_exist(self, names: K8sResourceNames) -> Tuple[bool, bool]:
@@ -81,26 +87,31 @@ class K8sResourceManager:
         # create service spec
         selector_labels = {
             "workflows.argoproj.io/workflow": names.original_name,
-            "app": f"{names.base_url}"
+            "app": f"{names.label}"
         }
 
         return client.V1Service(
             metadata=client.V1ObjectMeta(name=names.service_name),
             spec=client.V1ServiceSpec(
                 selector=selector_labels,
-                ports=[client.V1ServicePort(port=80, target_port=5173)]
+                # ports=[client.V1ServicePort(port=80, target_port=5173)]
+                ports=[client.V1ServicePort(port=80, target_port=names.target_port)]
             )
         )
 
     def _create_ingress_spec(self, names: K8sResourceNames) -> client.V1Ingress:
-        annotations = {
-            # rewrite
-            "nginx.ingress.kubernetes.io/rewrite-target": f"/{names.base_url}/$2",
-            
-            # redirect
-            "nginx.ingress.kubernetes.io/proxy-redirect-from": f"/{names.base_url}/",
-            "nginx.ingress.kubernetes.io/proxy-redirect-to": f"/{names.original_name}/",
-        }
+        annotations = {}
+        # Handle base path rewriting for nested applications
+        if names.needs_base_path:
+            annotations.update({
+                "nginx.ingress.kubernetes.io/rewrite-target": f"/{names.base_url}/$2",
+                "nginx.ingress.kubernetes.io/proxy-redirect-from": f"/{names.base_url}/",
+                "nginx.ingress.kubernetes.io/proxy-redirect-to": f"/{names.original_name}/"
+            })
+        else:
+            annotations.update({
+                "nginx.ingress.kubernetes.io/rewrite-target": "/$2"
+            })
         
         # create ingress spec
         return client.V1Ingress(
@@ -129,9 +140,9 @@ class K8sResourceManager:
             )
         )
 
-    async def create_resources(self, name: str, base_url: str) -> str:
+    async def create_resources(self, name: str, label: str, base_url: str, needs_base_path: bool, target_port: int) -> str:
         # create resources
-        names = self._generate_resource_names(name, base_url)
+        names = self._generate_resource_names(name, label, base_url, needs_base_path, target_port)
         service_exists, ingress_exists = await self._check_resources_exist(names)
 
         if service_exists and ingress_exists:
@@ -163,9 +174,15 @@ class K8sResourceManager:
 
         return self._generate_url(names.original_name)
 
-    async def delete_resources(self, name: str, base_url: str) -> None:
+    async def delete_resources(self, name: str, label: str) -> None:
         # delete resources
-        names = self._generate_resource_names(name, base_url)
+        names = self._generate_resource_names(
+            name, 
+            label, 
+            base_url="",
+            needs_base_path=False,
+            target_port=5173
+        )
 
         try:
             await asyncio.to_thread(

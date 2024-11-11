@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: n-a-a-vre-im-zhuyh-gmail-com-
+  labels:
+    vlab_slug: n-a-a-vre
+spec:
+    entrypoint: n-a-a-vre-im-zhuyh-gmail-com
+    serviceAccountName: executor
+    volumeClaimTemplates:
+    - metadata:
+        name: workdir
+      spec:
+        accessModes: [ "ReadWriteMany" ]
+        persistentVolumeReclaimPolicy: Delete
+        resources:
+          requests:
+            storage: 1Gi
+    arguments:
+      parameters:
+    templates:
+    - name: n-a-a-vre-im-zhuyh-gmail-com
+      dag:
+        tasks:
+        - name: visualize-api-im-zhuyh-gmail-com-91f4b9d
+          template: visualize-api-im-zhuyh-gmail-com-91f4b9d-tmp
+    - name: visualize-api-im-zhuyh-gmail-com-91f4b9d-tmp
+      outputs:
+        parameters:
+          - name: x_aa72edb
+            valueFrom:
+              path: /tmp/x_aa72edb.json
+      container:
+        image: "ghcr.io/qcdis/naavre-cells-test-2/visualize-api-im-zhuyh-gmail-com:6406fc3"
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: workdir
+          mountPath: /tmp/data
+        env:
+        command: ["/bin/bash", "-c"]
+        args:
+          - source /venv/bin/activate; ipython kernel install --user; python /app/task.py
+            --id  aa72edb;
+            jupyter execute /app/task-output.ipynb --allow-errors;
+            jupyter nbconvert --no-input --execute /app/task-output.ipynb --to html;
+            cp /app/task-output.html /tmp/data/visualize-api-im-zhuyh-gmail-com-91f4b9d-output.html;
+            jupyter notebook --port 5173 --NotebookApp.ip='0.0.0.0' --NotebookApp.allow_origin='*' --NotebookApp.base_url=/naavre-visualizer-notebook
+      metadata:
+        labels:
+          app: naavre-visualizer-notebook
