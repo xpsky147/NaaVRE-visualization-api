@@ -1,50 +1,76 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: n-a-a-vre-im-zhuyh-gmail-com-
-  labels:
-    vlab_slug: n-a-a-vre
+  generateName: jupyter-test-
 spec:
-    entrypoint: n-a-a-vre-im-zhuyh-gmail-com
-    serviceAccountName: executor
-    volumeClaimTemplates:
-    - metadata:
-        name: workdir
-      spec:
-        accessModes: [ "ReadWriteMany" ]
-        persistentVolumeReclaimPolicy: Delete
-        resources:
-          requests:
-            storage: 1Gi
-    arguments:
+  entrypoint: jupyter-workflow
+  serviceAccountName: executor  # ServiceAccount with sufficient permissions for pods and networking
+
+  templates:
+  - name: jupyter-workflow
+    dag:
+      tasks:
+      - name: jupyter-notebook
+        template: jupyter-notebook-template
+        # This task launches a Jupyter Notebook container with a unique base_url per workflow
+      - name: api-creater
+        template: api-creater-template
+        # This task registers the notebook as an Ingress-accessible service via the Visualization API
+
+  - name: jupyter-notebook-template
+    container:
+      image: "jupyter/minimal-notebook:latest"
+      command: ["start-notebook.sh"]
+      args: [
+        # Disable token and password for demo purposes (do not use in production)
+        "--ServerApp.token=''",
+        "--ServerApp.password=''",
+        "--ServerApp.ip=0.0.0.0",
+        # Use the workflow name as the Jupyter base_url, so each workflow is isolated under its own path
+        "--ServerApp.base_url=/{{workflow.name}}",
+        "--ServerApp.default_url=/lab"
+      ]
+      ports:
+      - containerPort: 8888  # Jupyter default port
+      readinessProbe:
+        tcpSocket:
+          port: 8888
+        initialDelaySeconds: 10
+        periodSeconds: 5
+    metadata:
+      labels:
+        app: naavre-visualizer-notebook  # Used by the api-creater sidecar for resource selection
+
+  - name: api-creater-template
+    outputs:
       parameters:
-    templates:
-    - name: n-a-a-vre-im-zhuyh-gmail-com
-      dag:
-        tasks:
-        - name: visualize-api-im-zhuyh-gmail-com-91f4b9d
-          template: visualize-api-im-zhuyh-gmail-com-91f4b9d-tmp
-    - name: visualize-api-im-zhuyh-gmail-com-91f4b9d-tmp
-      outputs:
-        parameters:
-          - name: x_aa72edb
-            valueFrom:
-              path: /tmp/x_aa72edb.json
-      container:
-        image: "ghcr.io/qcdis/naavre-cells-test-2/visualize-api-im-zhuyh-gmail-com:6406fc3"
-        imagePullPolicy: Always
-        volumeMounts:
-        - name: workdir
-          mountPath: /tmp/data
-        env:
-        command: ["/bin/bash", "-c"]
-        args:
-          - source /venv/bin/activate; ipython kernel install --user; python /app/task.py
-            --id  aa72edb;
-            jupyter execute /app/task-output.ipynb --allow-errors;
-            jupyter nbconvert --no-input --execute /app/task-output.ipynb --to html;
-            cp /app/task-output.html /tmp/data/visualize-api-im-zhuyh-gmail-com-91f4b9d-output.html;
-            jupyter notebook --port 5173 --NotebookApp.ip='0.0.0.0' --NotebookApp.allow_origin='*' --NotebookApp.base_url=/naavre-visualizer-notebook
-      metadata:
-        labels:
-          app: naavre-visualizer-notebook
+      - name: vis-url
+        valueFrom:
+          path: /tmp/visualization_url.txt
+    container:
+      image: "xpsky/viz-api-creater"
+      command: ["python"]
+      args: ["-u", "/app/create_viz.py"]
+      env:
+      - name: WORKFLOW_NAME
+        value: "{{workflow.name}}"
+        # Pass workflow name for resource naming and base_url
+      - name: TARGET_PORT
+        value: "8888"
+        # Jupyter runs on port 8888
+      - name: NEEDS_BASE_PATH
+        value: "true"
+        # Ingress will rewrite path and keep workflow name as base path
+      - name: BASE_URL
+        value: "{{workflow.name}}"
+        # Must match Jupyter's base_url for correct routing
+      - name: VIZ_TYPE
+        value: "jupyter"
+        # Tells the Visualization API to apply Jupyter-specific ingress annotations
+
+# How it works:
+# 1. The workflow launches a Jupyter Notebook server with a unique base_url (/workflow-name).
+# 2. The api-creater step registers the notebook with the Visualization API, 
+#    which creates a Kubernetes Service and Ingress for external access via /workflow-name/.
+# 3. The resulting URL is saved to /tmp/visualization_url.txt for downstream use.
+# 4. Access Jupyter via http(s)://<INGRESS_DOMAIN>/<workflow-name>/

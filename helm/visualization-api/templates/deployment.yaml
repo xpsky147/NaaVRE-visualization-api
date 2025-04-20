@@ -13,15 +13,12 @@ spec:
       {{- include "visualization-api.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      labels:
+        {{- include "visualization-api.labels" . | nindent 8 }}
       {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      labels:
-        {{- include "visualization-api.labels" . | nindent 8 }}
-        {{- with .Values.podLabels }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -36,42 +33,71 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          
+
           env:
+            # 自动注入运行时所在的 Namespace
             - name: K8S_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: INGRESS_DOMAIN
-              value: {{ .Values.ingressDomain }}
-          
+            # 用户在 values.yaml 中配置的环境变量
+            {{- with .Values.env }}
+            {{- range $key, $val := . }}
+            - name: {{ $key }}
+              value: {{ quote $val }}
+            {{- end }}
+            {{- end }}
+
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
+
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- with .Values.volumeMounts }}
+
+          {{- if .Values.persistence.enabled }}
           volumeMounts:
+            # 用户自定义的 volumeMounts（如有）
+            {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+            # 用于 streamlit_service 写入 data.json
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
           {{- end }}
-      {{- with .Values.volumes }}
+
+      {{- if .Values.persistence.enabled }}
       volumes:
-        {{- toYaml . | nindent 8 }}
+        # 管理数据持久化的 PVC
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "visualization-api.fullname" . }}-data
       {{- end }}
+
+      {{- with .Values.volumes }}
+      {{- if not .Values.persistence.enabled }}
+      volumes:
+      {{- end }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+
       {{- with .Values.tolerations }}
       tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.affinity }}
+      affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}

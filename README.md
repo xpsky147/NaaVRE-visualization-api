@@ -1,14 +1,26 @@
-# NaaVRE-visualization-api
-API for NaaVRE Visualization
+# API
 
-## Helm Deployment
+A modular, cloud-native platform for scientific computing, workflow orchestration, and interactive data visualization.
 
-### Prerequisites
-- Make sure you have [Helm](https://helm.sh/docs/intro/install/) installed on your machine.
-- You should run NaaVRE on Kubenetes.
+## Project Structure
 
-### Install the Helm Chart
-To deploy the visualization API, use the following command:
-```bash
-helm install visualization-api ./helm/visualization-api
-```
+- **visualization-api/**  
+  Backend API for managing visualizations and URLs.
+
+- **nodes/**  
+  Scientific computation and visualization node scripts.
+
+- **workflow/**  
+  Argo Workflow YAMLs for end-to-end pipelines.
+
+- **helm/**  
+  Helm charts for Kubernetes deployment.
+
+Please refer to each folder's `README.md` for detailed usage, parameters, and customization.
+
+## Documentation
+
+For a comprehensive description of the system architecture and use cases, see our Overleaf paper:  
+[Overleaf Project Link](https://www.overleaf.com/read/nddcfghgvgzq#840d9b)
+
+---

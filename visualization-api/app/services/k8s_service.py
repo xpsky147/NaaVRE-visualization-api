@@ -1,4 +1,3 @@
-# k8s_service.py
 from dataclasses import dataclass
 from typing import Optional, Tuple
 import os
@@ -22,9 +21,8 @@ class K8sResourceNames:
     target_port: int
 
 class K8sResourceManager:
-
     def __init__(self):
-        # initialize k8s client
+        # Set namespace and ingress domain from environment variables
         self.namespace = os.getenv('K8S_NAMESPACE', 'default')
         self.ingress_domain = os.getenv('INGRESS_DOMAIN')
         if not self.ingress_domain:
@@ -34,26 +32,23 @@ class K8sResourceManager:
             config.load_kube_config()
         except ConfigException:
             config.load_incluster_config()
-            
         self.core_v1 = client.CoreV1Api()
         self.networking_v1 = client.NetworkingV1Api()
 
     def _generate_resource_names(self, name: str, label: str, base_url: str, needs_base_path: bool, target_port: int) -> K8sResourceNames:
-        # generate resource names
         shorter_name = name[:50]
         return K8sResourceNames(
             service_name=f"viz-svc-{shorter_name}",
             ingress_name=f"viz-ing-{shorter_name}",
             namespace=self.namespace,
             original_name=name,
-            label = label,
-            base_url = base_url,
-            needs_base_path = needs_base_path,
-            target_port = target_port
+            label=label,
+            base_url=base_url,
+            needs_base_path=needs_base_path,
+            target_port=target_port
         )
 
     async def _check_resources_exist(self, names: K8sResourceNames) -> Tuple[bool, bool]:
-        # check if resources exist
         service_exists = False
         ingress_exists = False
 
@@ -83,37 +78,93 @@ class K8sResourceManager:
 
         return service_exists, ingress_exists
 
+    def detect_visualization_type(self, container_image: str, target_port: int) -> str:
+        """Detect visualization type based on container image and target port."""
+        image_lower = container_image.lower() if container_image else ""
+        if any(term in image_lower for term in ["jupyter", "notebook"]):
+            return "jupyter"
+        elif "shiny" in image_lower or target_port == 3838:
+            return "rshiny"
+        elif "rstudio" in image_lower or target_port == 8787:
+            return "rstudio"
+        elif "voila" in image_lower:
+            return "voila"
+        elif "streamlit" in image_lower or target_port == 8501:
+            return "streamlit"
+        port_type_map = {
+            8888: "jupyter",
+            3838: "rshiny",
+            8787: "rstudio",
+            8501: "streamlit"
+        }
+        if target_port in port_type_map:
+            return port_type_map[target_port]
+        return "generic-web"
+
     def _create_service_spec(self, names: K8sResourceNames) -> client.V1Service:
-        # create service spec
         selector_labels = {
             "workflows.argoproj.io/workflow": names.original_name,
             "app": f"{names.label}"
         }
-
         return client.V1Service(
             metadata=client.V1ObjectMeta(name=names.service_name),
             spec=client.V1ServiceSpec(
                 selector=selector_labels,
-                # ports=[client.V1ServicePort(port=80, target_port=5173)]
                 ports=[client.V1ServicePort(port=80, target_port=names.target_port)]
             )
         )
 
-    def _create_ingress_spec(self, names: K8sResourceNames) -> client.V1Ingress:
-        annotations = {}
-        # Handle base path rewriting for nested applications
-        if names.needs_base_path:
-            annotations.update({
-                "nginx.ingress.kubernetes.io/rewrite-target": f"/{names.base_url}/$2",
-                "nginx.ingress.kubernetes.io/proxy-redirect-from": f"/{names.base_url}/",
-                "nginx.ingress.kubernetes.io/proxy-redirect-to": f"/{names.original_name}/"
-            })
+    VIZ_TYPE_CONFIGS = {
+        "jupyter": {
+            "annotations": {
+                "nginx.ingress.kubernetes.io/websocket-services": "#{service_name}#",
+                "nginx.ingress.kubernetes.io/proxy-read-timeout": "3600",
+                "nginx.ingress.kubernetes.io/proxy-send-timeout": "3600"
+            }
+        },  
+        "rshiny": {
+            "annotations": {
+                "nginx.ingress.kubernetes.io/proxy-read-timeout": "600",
+                "nginx.ingress.kubernetes.io/proxy-body-size": "5m"
+            }
+        },
+        "rstudio": {
+            "annotations": {
+                "nginx.ingress.kubernetes.io/proxy-read-timeout": "600",
+                "nginx.ingress.kubernetes.io/proxy-body-size": "10m"
+            }
+        },
+        "generic-web": {
+            "annotations": {}
+        }
+    }
+
+    def _create_ingress_spec(self, names: K8sResourceNames, viz_type: str = "generic-web") -> client.V1Ingress:
+        viz_config = self.VIZ_TYPE_CONFIGS.get(viz_type, self.VIZ_TYPE_CONFIGS["generic-web"])
+        annotations = viz_config.get("annotations", {}).copy()
+        for key, value in annotations.items():
+            if isinstance(value, str) and "#{service_name}#" in value:
+                annotations[key] = value.replace("#{service_name}#", names.service_name)
+        if viz_type == "jupyter":
+            if names.needs_base_path:
+                annotations.update({
+                    "nginx.ingress.kubernetes.io/rewrite-target": f"/{names.original_name}/$2"
+                })
+            else:
+                annotations.update({
+                    "nginx.ingress.kubernetes.io/rewrite-target": "/$2"
+                })
         else:
-            annotations.update({
-                "nginx.ingress.kubernetes.io/rewrite-target": "/$2"
-            })
-        
-        # create ingress spec
+            if names.needs_base_path:
+                annotations.update({
+                    "nginx.ingress.kubernetes.io/rewrite-target": f"/{names.base_url}/$2",
+                    "nginx.ingress.kubernetes.io/proxy-redirect-from": f"/{names.base_url}/",
+                    "nginx.ingress.kubernetes.io/proxy-redirect-to": f"/{names.original_name}/"
+                })
+            else:
+                annotations.update({
+                    "nginx.ingress.kubernetes.io/rewrite-target": "/$2"
+                })
         return client.V1Ingress(
             metadata=client.V1ObjectMeta(
                 name=names.ingress_name,
@@ -126,7 +177,6 @@ class K8sResourceManager:
                     http=client.V1HTTPIngressRuleValue(
                         paths=[client.V1HTTPIngressPath(
                             path=f"/{names.original_name}(/|$)(.*)",
-                            # path=f"/{names.original_name}",
                             path_type="Prefix",
                             backend=client.V1IngressBackend(
                                 service=client.V1IngressServiceBackend(
@@ -140,8 +190,9 @@ class K8sResourceManager:
             )
         )
 
-    async def create_resources(self, name: str, label: str, base_url: str, needs_base_path: bool, target_port: int) -> str:
-        # create resources
+    async def create_resources(self, name: str, label: str, base_url: str, 
+                            needs_base_path: bool, target_port: int, 
+                            viz_type: str = "generic-web") -> str:
         names = self._generate_resource_names(name, label, base_url, needs_base_path, target_port)
         service_exists, ingress_exists = await self._check_resources_exist(names)
 
@@ -160,13 +211,13 @@ class K8sResourceManager:
                 logger.info(f"Service {names.service_name} created")
 
             if not ingress_exists:
-                ingress_spec = self._create_ingress_spec(names)
+                ingress_spec = self._create_ingress_spec(names, viz_type)
                 await asyncio.to_thread(
                     self.networking_v1.create_namespaced_ingress,
                     namespace=names.namespace, 
                     body=ingress_spec
                 )
-                logger.info(f"Ingress {names.ingress_name} created")
+                logger.info(f"Ingress {names.ingress_name} created for {viz_type} visualization")                
 
         except client.ApiException as e:
             logger.error(f"Failed to create resources: {e}")
@@ -175,7 +226,6 @@ class K8sResourceManager:
         return self._generate_url(names.original_name)
 
     async def delete_resources(self, name: str, label: str) -> None:
-        # delete resources
         names = self._generate_resource_names(
             name, 
             label, 
@@ -207,5 +257,4 @@ class K8sResourceManager:
                 raise Exception(f"Failed to delete service: {e}")
 
     def _generate_url(self, name: str) -> str:
-        # generate url
         return f"http://{self.ingress_domain}/{name}/"

@@ -1,0 +1,108 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: scientific-visualization-workflow
+spec:
+  # Workflow input parameters
+  arguments:
+    parameters:
+    - name: experiment-type
+      value: "heat-transfer"
+    - name: experiment-params
+      value: "{\"grid_size\": 50, \"time_steps\": 100, \"diffusion_rate\": 0.5}"
+    - name: visualization-type
+      value: "scientific"  # Options: scientific, dashboard, basic
+
+  # Shared workspace volume for data exchange
+  volumeClaimTemplates:
+  - metadata:
+      name: workdir
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+
+  # Main workflow entry
+  entrypoint: main
+  templates:
+  - name: main
+    steps:
+    # Step 1: Run the scientific computation
+    - - name: scientific-computation
+        template: run-scientific-computation
+        arguments:
+          parameters:
+          - name: experiment-type
+            value: "{{workflow.parameters.experiment-type}}"
+          - name: experiment-params
+            value: "{{workflow.parameters.experiment-params}}"
+          - name: output-file
+            value: "/workdir/results.json"
+
+    # Step 2: Visualization integration node
+    - - name: visualization
+        template: run-node-a
+        arguments:
+          parameters:
+          - name: input-file
+            value: "/workdir/results.json"
+          - name: output-file
+            value: "/workdir/visualization-url.txt"
+          - name: visualization-type
+            value: "{{workflow.parameters.visualization-type}}"
+
+    # Output workflow-level visualization URL parameter
+    outputs:
+      parameters:
+      - name: visualization-url
+        valueFrom:
+          parameter: "{{steps.visualization.outputs.parameters.visualization-url}}"
+
+  # Scientific computation template
+  - name: run-scientific-computation
+    inputs:
+      parameters:
+      - name: experiment-type
+      - name: experiment-params
+      - name: output-file
+    container:
+      image: xpsky/scientific-computation:latest
+      command: ["python", "/app/compute.py"]
+      args:
+      - "--type={{inputs.parameters.experiment-type}}"
+      - "--params={{inputs.parameters.experiment-params}}"
+      - "--output={{inputs.parameters.output-file}}"
+      volumeMounts:
+      - name: workdir
+        mountPath: /workdir
+
+  # Visualization integrator node (Node A)
+  - name: run-node-a
+    inputs:
+      parameters:
+      - name: input-file
+      - name: output-file
+      - name: visualization-type
+    outputs:
+      parameters:
+      - name: visualization-url
+        valueFrom:
+          path: /workdir/visualization-url.txt
+    container:
+      image: xpsky/data-viz:latest
+      command: ["python", "/app/main.py"]
+      args:
+      - "--input={{inputs.parameters.input-file}}"
+      - "--output={{inputs.parameters.output-file}}"
+      - "--type={{inputs.parameters.visualization-type}}"
+      env:
+      - name: API_URL
+        value: "http://visualization-api"
+      volumeMounts:
+      - name: workdir
+        mountPath: /workdir
+
+# Notes:
+# - The workflow runs a scientific simulation and then visualizes the results using the Visualization API.
+# - The API_URL is configurable; results and visualization URLs are stored in the shared volume.

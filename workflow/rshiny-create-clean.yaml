@@ -1,3 +1,4 @@
+# Example Argo Workflow to test exposing an RShiny visualization and clean up
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
@@ -47,9 +48,16 @@ spec:
       metadata:
         labels:
           app: naavre-visualizer-notebook
+
+    # Example: set VIZ_TYPE environment variable
     - name: api-creater-template
+      outputs:
+        parameters:
+        - name: vis-url
+          valueFrom:
+            path: /tmp/visualization_url.txt
       container:
-        image: "xpsky147/viz-api-creater"
+        image: "xpsky/viz-api-creater"
         command: ["python"]
         args: ["-u", "/app/create_viz.py"]
         env:
@@ -59,11 +67,20 @@ spec:
           value: "3838"
         - name: NEEDS_BASE_PATH
           value: "false"
+        - name: VIZ_TYPE
+          value: "rshiny"  # R Shiny visualization
+
     - name: cleanup-template
+      retryStrategy:
+        limit: 3
+        retryPolicy: "Always"
+        backoff:
+          duration: "5s"
+          factor: 2
       container:
-        image: "xpsky147/viz-cleaner"
+        image: "xpsky/viz-api-cleaner"
         command: ["python"]
-        args: ["-u", "/app/cleanup.py"]
+        args: ["-u", "/app/cleaner.py"]
         env:
         - name: WORKFLOW_NAME
           value: "{{workflow.name}}"
