@@ -4,12 +4,14 @@ This folder contains all the computational and service nodes used as building bl
 
 ## Node Overview
 
-| Node Name           | Description                                                    |
-|---------------------|----------------------------------------------------------------|
-| compute.py          | Simulates scientific experiments (e.g., heat transfer, signal analysis, fluid flow) and outputs results in JSON format. |
-| main.py             | Integrates computation results and registers them with the Visualization API for interactive visualization. |
-| create_viz.py       | Used in web/external tool workflows (e.g., Jupyter, RShiny, Streamlit) to dynamically register a running service with the Visualization API and expose it via Ingress. |
-| cleaner.py          | Deregisters and cleans up visualization resources after workflow completion or failure. |
+| Node Name             | Description                                                    |
+|-----------------------|----------------------------------------------------------------|
+| scientific-computation| Simulates scientific experiments (e.g., heat transfer, signal analysis, fluid flow) and outputs results in JSON format. |
+| data-viz              | Integrates computation results and registers them with the Visualization API for interactive visualization. |
+| create                | Used in web/external tool workflows (e.g., Jupyter, RShiny, Streamlit) to dynamically register a running service with the Visualization API and expose it via Ingress. |
+| clean                 | Deregisters and cleans up visualization resources after workflow completion or failure. |
+| streamlit             | Streamlit app for rendering experiment results. |
+
 
 ## Usage
 
@@ -17,14 +19,9 @@ This folder contains all the computational and service nodes used as building bl
 - Input and output paths are passed as command-line arguments or environment variables.
 - The nodes are stateless and exchange data via mounted volumes or API calls.
 
-## Example
-
+### Deploy Streamlit
 ```bash
-# Run a simulation node directly (for test)
-python compute.py --type heat-transfer --params '{"grid_size":50,"time_steps":100}' --output ./results.json
-
-# Register and visualize results
-python main.py --input ./results.json --output ./visualization-url.txt --type scientific
+kubectl apply -f streamlit-deployment-simple.yaml
 ```
 
 ## File List
@@ -36,6 +33,14 @@ create_viz.py – Visualization API registration for running services (e.g. Jupy
 
 cleaner.py – Visualization resource cleanup node
 
+viz_app.py - Main Streamlit app for rendering experiment results
+
 ## Notes
 Each node should be run in a compatible Python environment with the required dependencies installed (see requirements.txt if applicable).
 For more details on parameters and output, refer to each script's docstrings or inline comments.
+
+The app expects result data in JSON format, usually mounted at /workdir/results.json or fetched from an API.
+Adjust API endpoints or paths in viz_app.py as needed for your workflow.
+
+---
+

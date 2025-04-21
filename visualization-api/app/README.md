@@ -55,7 +55,7 @@ export STREAMLIT_URL=http://localhost:8501
 ```
 4. Launch server:
 ```bash
-uvicorn visualization-api.main:app --reload
+uvicorn visualization-api.main:app --host 0.0.0.0 --port 80
 ```
 
 5. Visit http://localhost:8000/docs for interactive API docs.
