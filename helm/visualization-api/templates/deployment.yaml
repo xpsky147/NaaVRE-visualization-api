@@ -24,9 +24,16 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+
+      # ServiceAccount 和自动挂载 Token
+      {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ include "visualization-api.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+      {{- end }}
+
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -34,13 +41,14 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 
+          # 环境变量
           env:
-            # 自动注入运行时所在的 Namespace
+            # 自动注入 Pod 所在 Namespace
             - name: K8S_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            # 用户在 values.yaml 中配置的环境变量
+            # 用户自定义 ENV
             {{- with .Values.env }}
             {{- range $key, $val := . }}
             - name: {{ $key }}
@@ -53,28 +61,30 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
 
+          {{- with .Values.livenessProbe }}
           livenessProbe:
-            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          {{ toYaml . | nindent 12 }}
+          {{- end }}
+
+          {{- with .Values.readinessProbe }}
           readinessProbe:
-            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          {{ toYaml . | nindent 12 }}
+          {{- end }}
 
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
 
           {{- if .Values.persistence.enabled }}
           volumeMounts:
-            # 用户自定义的 volumeMounts（如有）
             {{- with .Values.volumeMounts }}
-            {{- toYaml . | nindent 12 }}
+            {{ toYaml . | nindent 12 }}
             {{- end }}
-            # 用于 streamlit_service 写入 data.json
             - name: data
               mountPath: {{ .Values.persistence.mountPath }}
           {{- end }}
 
       {{- if .Values.persistence.enabled }}
       volumes:
-        # 管理数据持久化的 PVC
         - name: data
           persistentVolumeClaim:
             claimName: {{ include "visualization-api.fullname" . }}-data

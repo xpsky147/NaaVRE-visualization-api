@@ -2,7 +2,7 @@
 import os, asyncio, time, httpx, subprocess
 
 # --------------------------------------------
-# 配置项
+# Configuration
 # --------------------------------------------
 API = os.getenv("API_URL", "http://localhost:8000")
 NAMESPACE = os.getenv("K8S_NAMESPACE", "default")
@@ -18,7 +18,7 @@ SCENARIOS = {
             "target_port": 8888,
             "viz_type": "jupyter"
         },
-        # 用于 kubectl selector 和 DELETE 接口
+        # Used for kubectl selector and DELETE API
         "label": "perf-jupyter"
     },
     "rshiny": {
@@ -38,16 +38,16 @@ SCENARIOS = {
         "payload": {
             "title": "perf-scientific",
             "chart_type": "line",
-            "data": {"x":[1,2,3],"y":[1,4,9]},
+            "data": {"x": [1, 2, 3], "y": [1, 4, 9]},
             "layout": {}, "options": {}, "metadata": {}
         },
-        # scientific 场景不创建 Service/Ingress，不需要删除
+        # The scientific scenario does not create Service/Ingress and does not require deletion
         "label": None
     }
 }
 
 # --------------------------------------------
-# 单次 POST 请求
+# Send a single POST request and measure latency
 # --------------------------------------------
 async def single_request(endpoint, payload):
     async with httpx.AsyncClient(base_url=API, timeout=20.0) as client:
@@ -57,16 +57,16 @@ async def single_request(endpoint, payload):
         return (t1 - t0) * 1000, r.status_code
 
 # --------------------------------------------
-# 走 API DELETE 接口
+# DELETE request via API
 # --------------------------------------------
 async def api_delete(name, label):
     async with httpx.AsyncClient(base_url=API, timeout=30.0) as client:
-        # 注意：你的 DELETE 端点是 /visualizations?name=…&label=…
+        # Note: your DELETE endpoint is /visualizations?name=…&label=…
         r = await client.delete(f"/visualizations?name={name}&label={label}")
     return r.status_code
 
 # --------------------------------------------
-# 轮询等待 K8s 资源真正清理
+# Polling to ensure K8s resources are fully cleaned up
 # --------------------------------------------
 def wait_cleanup(label, timeout=30):
     end = time.time() + timeout
@@ -76,33 +76,33 @@ def wait_cleanup(label, timeout=30):
             "-n", NAMESPACE,
             "-l", f"workflows.argoproj.io/workflow={label}"
         ], capture_output=True, text=True).stdout
-        # 没有资源存在时结束
+        # Exit if no resources are found
         if not out.strip() or "No resources found" in out:
             return True
         time.sleep(1)
     return False
 
 # --------------------------------------------
-# 针对某个场景的冷/热启动测试
+# Cold/Warm startup test for a given scenario
 # --------------------------------------------
 async def run_scenario(name, cfg, N=5, delete_before=False):
-    print(f"\n-- 场景: {name} | delete_before={delete_before} --")
+    print(f"\n-- Scenario: {name} | delete_before={delete_before} --")
     lbl = cfg.get("label")
-    # 只有 label 非空时才做删除
+    # Only delete if label is specified
     if delete_before and lbl:
         code = await api_delete(cfg["payload"].get("name", ""), lbl)
         print(f" DELETE /visualizations -> HTTP {code}")
         if not wait_cleanup(lbl):
-            print(" WARN: K8s 资源在超时后仍未清理完毕")
+            print(" WARN: K8s resources not fully cleaned up after timeout")
 
-    # 执行 N 次 POST 并收集延迟与错误
+    # Execute N POST requests and collect latency and errors
     lats, errs = [], 0
     for i in range(N):
         d, status = await single_request(cfg["endpoint"], cfg["payload"])
         lats.append(d)
         if status >= 400:
             errs += 1
-        # 避免请求过快，可根据需要调节
+        # Avoid sending requests too quickly; adjust as needed
         await asyncio.sleep(1)
 
     lats.sort()
@@ -111,13 +111,13 @@ async def run_scenario(name, cfg, N=5, delete_before=False):
     print(f" Avg {avg:.1f} ms | P95 {p95:.1f} ms | errs {errs}/{N}")
 
 # --------------------------------------------
-# 主流程：依次对每个场景做冷/热启动
+# Main routine: run cold and warm tests for each scenario
 # --------------------------------------------
 async def main():
     for name, cfg in SCENARIOS.items():
-        # 冷启动
+        # Cold start
         await run_scenario(name, cfg, N=5, delete_before=True)
-        # 热启动
+        # Warm start
         await run_scenario(name, cfg, N=5, delete_before=False)
 
 if __name__ == "__main__":
