@@ -65,6 +65,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
 spec:
+  ingressClassName: nginx
   rules:
   - host: viz.naavre.example.com  # Make sure this matches the STREAMLIT_URL in your API config
     http:

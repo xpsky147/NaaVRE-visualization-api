@@ -1,9 +1,9 @@
 # Default values for visualization-api.
 
-replicaCount: 2
+replicaCount: 1
 
 image:
-  repository: ghcr.io/naavre/naavre-visualization-api
+  repository: xpsky/naavre-visualization-api
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -40,11 +40,11 @@ service:
   port: 80
 
 ingress:
-  enabled: true
+  enabled: false
   className: nginx
   annotations: {}
   hosts:
-    - host: viz.naavre.example.com
+    - host: viz-test.local
       paths:
         - path: /
           pathType: Prefix
