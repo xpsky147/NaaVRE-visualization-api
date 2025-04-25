@@ -9,8 +9,8 @@ image:
 
 
 env:
-  INGRESS_DOMAIN: "viz.naavre.example.com"
-  STREAMLIT_URL: "http://viz.naavre.example.com"
+  INGRESS_DOMAIN: "naavre-dev.minikube.test"
+  STREAMLIT_URL: "http://naavre-dev.minikube.test"
   STREAMLIT_DATA_DIR: "/data/api/streamlit_visualizations"
 
 serviceAccount:
@@ -40,18 +40,18 @@ service:
   port: 80
 
 ingress:
-  enabled: false
+  enabled: true
   className: nginx
   annotations: {}
   hosts:
-    - host: viz-test.local
+    - host: naavre-dev.minikube.test
       paths:
-        - path: /
+        - path: /api
           pathType: Prefix
   tls: []
 
 persistence:
-  enabled: true
+  enabled: false
   accessModes:
     - ReadWriteOnce
   size: 1Gi

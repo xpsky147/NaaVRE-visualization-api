@@ -20,7 +20,7 @@ spec:
         image: xpsky/streamlit-viz:latest
         env:
         - name: API_BASE_URL
-          value: "http://visualization-api"
+          value: "http://naavre-dev.minikube.test"
         ports:
         - containerPort: 8501
         resources:
@@ -67,7 +67,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: viz.naavre.example.com  # Make sure this matches the STREAMLIT_URL in your API config
+  - host: naavre-dev.minikube.test  # Make sure this matches the STREAMLIT_URL in your API config
     http:
       paths:
       - path: /
