@@ -257,4 +257,4 @@ class K8sResourceManager:
                 raise Exception(f"Failed to delete service: {e}")
 
     def _generate_url(self, name: str) -> str:
-        return f"http://{self.ingress_domain}/{name}/"
+        return f"https://{self.ingress_domain}/{name}/"

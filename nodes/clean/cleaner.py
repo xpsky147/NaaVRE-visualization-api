@@ -4,7 +4,8 @@ import socket
 import time
 
 # Configuration
-API_URL = "http://visualization-api:80/visualizations"
+API_HOST = os.environ.get("API_URL", "http://viz-test-visualization-api")
+API_URL  = f"{API_HOST}/visualizations"
 MAX_RETRIES = 3
 WAIT_SECONDS = 5
 

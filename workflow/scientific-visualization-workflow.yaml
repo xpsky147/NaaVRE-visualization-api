@@ -78,7 +78,7 @@ spec:
         mountPath: /workdir
 
   # Visualization integrator node (Node A)
-  - name: run-node-a
+  - name: run-data-viz
     inputs:
       parameters:
       - name: input-file
@@ -98,7 +98,7 @@ spec:
       - "--type={{inputs.parameters.visualization-type}}"
       env:
       - name: API_URL
-        value: "http://visualization-api"
+        value: "http://viz-test-visualization-api"
       volumeMounts:
       - name: workdir
         mountPath: /workdir

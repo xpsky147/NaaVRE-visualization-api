@@ -42,7 +42,7 @@ class StreamlitService:
             logger.info(f"Streamlit visualization data stored: {viz_id}")
 
             # Get Streamlit base URL from environment variable
-            streamlit_url = os.environ.get("STREAMLIT_URL", "http://viz.naavre.example.com")
+            streamlit_url = os.environ.get("STREAMLIT_URL", "https://viz-test-visualization-api")
             visualization_url = f"{streamlit_url}/?id={viz_id}"
 
             return {
@@ -106,7 +106,7 @@ class StreamlitService:
                 json.dump(visualization_data, f)
             logger.info(f"Scientific visualization data stored: {viz_id}")
 
-            streamlit_url = os.environ.get("STREAMLIT_URL", "http://viz.naavre.example.com")
+            streamlit_url = os.environ.get("STREAMLIT_URL", "https://viz-test-visualization-api")
             visualization_url = f"{streamlit_url}/?id={viz_id}"
 
             return {
@@ -151,7 +151,7 @@ class StreamlitService:
                 json.dump(visualization_data, f)
             logger.info(f"Dashboard visualization data stored: {viz_id}")
 
-            streamlit_url = os.environ.get("STREAMLIT_URL", "http://viz.naavre.example.com")
+            streamlit_url = os.environ.get("STREAMLIT_URL", "https://viz-test-visualization-api")
             visualization_url = f"{streamlit_url}/?id={viz_id}"
 
             return {

@@ -84,3 +84,5 @@ spec:
         env:
         - name: WORKFLOW_NAME
           value: "{{workflow.name}}"
+        - name: API_URL
+          value: "http://viz-test-visualization-api"
