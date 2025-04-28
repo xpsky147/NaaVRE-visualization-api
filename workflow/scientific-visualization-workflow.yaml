@@ -42,7 +42,7 @@ spec:
 
     # Step 2: Visualization integration node
     - - name: visualization
-        template: run-node-a
+        template: run-data-viz
         arguments:
           parameters:
           - name: input-file

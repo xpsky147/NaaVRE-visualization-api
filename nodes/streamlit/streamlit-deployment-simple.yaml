@@ -61,19 +61,22 @@ kind: Ingress
 metadata:
   name: streamlit-viz-ingress
   annotations:
-    # Optional: Ingress annotations, adjust to your environment
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - naavre-dev.minikube.test
+      secretName: naavre-dev-tls
   rules:
-  - host: naavre-dev.minikube.test  # Make sure this matches the STREAMLIT_URL in your API config
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: streamlit-viz
-            port:
-              number: 80
+    - host: naavre-dev.minikube.test
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: streamlit-viz
+                port:
+                  number: 80
