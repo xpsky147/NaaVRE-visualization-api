@@ -1,85 +1,146 @@
-# Visualization API
+# API Deployment Guide
 
-A FastAPI-based microservice for deploying and managing scientific and dashboard visualizations on Kubernetes.
+A modular, cloud-native platform for scientific computing, workflow orchestration, and interactive data visualization.
 
-## What is this service for?
+## Project Structure
 
-- **Expose your visualization or data analysis tools as a web service on Kubernetes** (Jupyter, RShiny, etc).
-- **Generate interactive visualizations from data directly via API**, and share them via generated URLs.
+- **visualization-api/**  
+  Backend API for managing visualizations and provisioning URLs.
 
-## Requirements
+- **nodes/**  
+  Scientific computation and visualization node scripts.
 
-- Python 3.12
-- Docker (for container builds)
-- Kubernetes cluster (for deployment)
-- Helm (for deployment via Helm charts)
-- Tilt (for local development, optional)
+- **workflow/**  
+  Argo Workflow YAMLs for end-to-end pipelines.
 
-### Python dependencies
+- **helm/**  
+  Helm charts for Kubernetes deployment.
 
-All dependencies are pinned in `requirements.txt`:
+See each folder’s `README.md` for detailed usage, parameters, and customization.
 
-```text
-fastapi==0.111.1
-PyJWT[crypto]==2.8.0
-requests==2.32.3
-uvicorn==0.29.0
-pydantic==2.7.1
-kubernetes==29.0.0
-```
+---
 
-## Local Development and Deployment (with Tilt)
+## Prerequisites
 
-This API is designed to be deployed as part of the NaaVRE platform using [Tilt](https://tilt.dev/).
+1. A Kubernetes cluster (Minikube/Kind or cloud provider)  
+2. `kubectl` and `helm` installed and configured  
+3. NGINX Ingress Controller deployed  
+4. A TLS certificate for `naavre-dev.minikube.test`, stored as a Secret (e.g. `naavre-dev-tls`)  
+5. Local hosts file mapping (for local testing): 127.0.0.1 naavre-dev.minikube.test
 
-## API Endpoints
-- POST /visualizations — Deploy a visualization service
-- DELETE /visualizations — Delete a visualization service
-- POST /visualizations/streamlit — Create Streamlit visualization
-- POST /visualizations/scientific — Create scientific visualization
-- POST /visualizations/dashboard — Create dashboard visualization
-- GET /api/visualization/data/{viz_id} — Get visualization data
-- GET /healthz — Health check
+---
 
-## Quick Start (Local Development)
+## 1. Clone the Repository
 
-1. Clone repo and enter directory.
-2. Install dependencies:
 ```bash
-pip install -r requirements.txt
+git clone https://github.com/xpsky147/NaaVRE-visualization-api.git
+cd NaaVRE-visualization-api
 ```
-3. Set required environment variables, e.g.:
+
+## 2. Configure Helm Chart (helm/visualization-api/values.yaml)
+### What to set
+- INGRESS_DOMAIN: The Host domain that the Ingress Controller listens on to expose API & Visualizations URLs to the public.
+- STREAMLIT_URL: The Streamlit Service Base URL that the API returns to the user. 
+    - If your Streamlit UI is also intended to be accessed through the same domain name, fill in https://naavre-dev.minikube.test. 
+    - If a different domain name or path is created, change it to the corresponding address.
+
+```yaml
+env:
+  INGRESS_DOMAIN: "naavre-dev.minikube.test"
+  STREAMLIT_URL: "https://naavre-dev.minikube.test"
+```
+
+- Ingress TLS
+```yaml
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: naavre-dev.minikube.test
+      paths:
+        - path: /api
+          pathType: Prefix
+  tls:
+    - hosts:
+        - naavre-dev.minikube.test
+      secretName: naavre-dev-tls
+```
+STREAMLIT_URL must use https://….
+
+secretName must match the TLS Secret in the same namespace.
+
+## 3. Configure Streamlit Deployment (nodes/streamlit/streamlit-deployment-simple.yaml)
+Edit nodes/streamlit/streamlit-deployment-simple.yaml:
+```yaml
+# Within the Deployment spec:
+env:
+  - name: API_BASE_URL
+    value: "https://naavre-dev.minikube.test/api"
+
+# Add TLS to the Ingress:
+kind: Ingress
+metadata:
+  name: streamlit-viz-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - naavre-dev.minikube.test
+      secretName: naavre-dev-tls
+  rules:
+    - host: naavre-dev.minikube.test
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: streamlit-viz
+                port:
+                  number: 80
+```
+
+## 4. Deploy Visualization-API
 ```bash
-export INGRESS_DOMAIN=localhost
-export STREAMLIT_URL=http://localhost:8501
+helm install viz-test helm/visualization-api \
+  --values helm/visualization-api/values.yaml
 ```
-4. Launch server:
+
+## 5. Deploy Streamlit Service
 ```bash
-uvicorn visualization-api.main:app --host 0.0.0.0 --port 80
+kubectl apply -f nodes/streamlit/streamlit-deployment-simple.yaml
+```
+## 7. Verify Installation
+- API Health:
+```bash
+curl -k https://naavre-dev.minikube.test/api/healthz
+```
+You should see something like:
+```json
+{ "status": "healthy", "timestamp": "2025-04-28T..." }
 ```
 
-5. Visit http://localhost:8000/docs for interactive API docs.
+- Streamlit UI
+Open in your browser: https://naavre-dev.minikube.test/
 
+- Dynamic Visualization Nodes
+Run an Argo Workflow and use the returned URL, e.g.:
+https://naavre-dev.minikube.test/<workflow-name>/
 
-## Data Storage
-All visualization data is stored under STREAMLIT_DATA_DIR (default /data/api/streamlit_visualizations).
-Each visualization has a unique UUID directory and a data.json file.
-
-## Extending the API
-Add new endpoints or visualization logic in visualization-api/ and services/.
-Data models are in models/.
-
-## Common Issues
-Environment variable not set: Make sure INGRESS_DOMAIN and STREAMLIT_URL are set.
-
-Kubernetes resource errors: Check your K8s cluster access and RBAC.
-
-Data lost after restart: Use a PersistentVolume for STREAMLIT_DATA_DIR in production.
-
-## Environment Variables
-- K8S_NAMESPACE (default: default)
-- INGRESS_DOMAIN (required)
-- STREAMLIT_URL (default: http://viz.naavre.example.com)
-
-## Integration with NaaVRE
-This service is a component in the NaaVRE platform. For full workflow orchestration, see NaaVRE documentation.
+## Notes & Cleanup
+- TLS
+    - For local testing, use mkcert to generate and trust certificates.
+    - In production, use cert-manager + Let’s Encrypt or your CA of choice.
+- Internal Traffic
+    - All intra-cluster communication (Workflow → API → Streamlit) uses HTTP.
+    - Only external client ↔ Ingress uses HTTPS.
+- Cleanup
+```bash
+helm uninstall viz-test
+kubectl delete -f nodes/streamlit/streamlit-deployment-simple.yaml
