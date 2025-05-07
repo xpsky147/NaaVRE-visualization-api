@@ -130,7 +130,7 @@ kubectl apply -f nodes/streamlit/streamlit-deployment-simple.yaml
 ## 7. Verify Installation
 - API Health:
 ```bash
-curl -k https://naavre-dev.minikube.test/api/healthz
+curl -k https://naavre-dev.minikube.test/visualization-api/healthz
 ```
 You should see something like:
 ```json

@@ -47,16 +47,15 @@ ingress:
   hosts:
     - host: naavre-dev.minikube.test
       paths:
-        - path: /healthz
+        - path: /visualization-api/healthz
           pathType: Exact
-        - path: /api
+        - path: /visualization-api/api
           pathType: Prefix
-        - path: /visualizations
+        - path: /visualization-api/visualizations
           pathType: Prefix
   tls:
     - hosts:
         - naavre-dev.minikube.test
-      secretName: naavre-dev-tls
 
 persistence:
   enabled: true
