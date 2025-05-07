@@ -10,7 +10,7 @@ image:
 
 env:
   INGRESS_DOMAIN: "naavre-dev.minikube.test"
-  STREAMLIT_URL: "https://naavre-dev.minikube.test"
+  STREAMLIT_URL: "https://naavre-dev.minikube.test/visualization-api"
   STREAMLIT_DATA_DIR: "/data/api/streamlit_visualizations"
 
 serviceAccount:
@@ -41,22 +41,21 @@ service:
 
 ingress:
   enabled: true
-  className: nginx
   annotations:
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: "/$1"
   hosts:
     - host: naavre-dev.minikube.test
       paths:
-        - path: /healthz
-          pathType: Exact
-        - path: /api
-          pathType: Prefix
-        - path: /visualizations
-          pathType: Prefix
+        - path: /visualization-api/(healthz)(?:/|$)(.*)
+          pathType: ImplementationSpecific
+        - path: /visualization-api/(api)(?:/|$)(.*)
+          pathType: ImplementationSpecific
+        - path: /visualization-api/(visualizations)(?:/|$)(.*)
+          pathType: ImplementationSpecific
   tls:
     - hosts:
         - naavre-dev.minikube.test
-      secretName: naavre-dev-tls
 
 persistence:
   enabled: true

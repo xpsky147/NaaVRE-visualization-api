@@ -20,7 +20,7 @@ spec:
         image: xpsky/streamlit-viz:latest
         env:
         - name: API_BASE_URL
-          value: "http://viz-test-visualization-api"
+          value: "https://naavre-dev.minikube.test/visualization-api"
         ports:
         - containerPort: 8501
         resources:
@@ -68,13 +68,12 @@ spec:
   tls:
     - hosts:
         - naavre-dev.minikube.test
-      secretName: naavre-dev-tls
   rules:
     - host: naavre-dev.minikube.test
       http:
         paths:
-          - path: /
-            pathType: Prefix
+          - path: /visualization-api(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: streamlit-viz
