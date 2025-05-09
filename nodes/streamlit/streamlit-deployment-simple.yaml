@@ -20,7 +20,7 @@ spec:
         image: xpsky/streamlit-viz:latest
         env:
         - name: API_BASE_URL
-          value: "https://naavre-dev.minikube.test/visualization-api"
+          value: "https://staging.demo.naavre.net/visualization-api"
         ports:
         - containerPort: 8501
         resources:
@@ -33,13 +33,13 @@ spec:
         # Optional: add health checks for readiness and liveness
         readinessProbe:
           httpGet:
-            path: /
+            path: /visualization-api
             port: 8501
           initialDelaySeconds: 10
           periodSeconds: 5
         livenessProbe:
           httpGet:
-            path: /
+            path: /visualization-api
             port: 8501
           initialDelaySeconds: 15
           periodSeconds: 10
@@ -67,9 +67,9 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - naavre-dev.minikube.test
+        - staging.demo.naavre.net
   rules:
-    - host: naavre-dev.minikube.test
+    - host: staging.demo.naavre.net
       http:
         paths:
           - path: /visualization-api(/|$)(.*)

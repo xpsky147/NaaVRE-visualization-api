@@ -5,7 +5,7 @@ from statistics import mean, quantiles
 # --------------------------------------------
 # Configuration
 # --------------------------------------------
-API = os.getenv("API_URL", "http://localhost:8000")
+API = os.getenv("API_URL", "https://staging.demo.naavre.net/visualization-api")
 CONCURRENCY = int(os.getenv("CONCURRENCY", "50"))  # Number of concurrent tasks
 TOTAL = int(os.getenv("TOTAL", "500"))  # Total number of requests
 

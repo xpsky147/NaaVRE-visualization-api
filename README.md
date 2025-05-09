@@ -55,30 +55,25 @@ kubectl -n visualization create secret tls naavre-dev-tls \
 
 ```yaml
 env:
-  INGRESS_DOMAIN: "naavre-dev.minikube.test"
-  STREAMLIT_URL: "https://naavre-dev.minikube.test"
+  INGRESS_DOMAIN: "staging.demo.naavre.net"
+  STREAMLIT_URL: "https://staging.demo.naavre.net/visualization-api"
 ```
 
 - Ingress TLS: secretName must match the TLS Secret in the same namespace.
 ```yaml
 ingress:
   enabled: true
-  className: nginx
   annotations:
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: "/$1"
   hosts:
-    - host: naavre-dev.minikube.test
+    - host: staging.demo.naavre.net
       paths:
-        - path: /healthz
-          pathType: Exact
-        - path: /api
-          pathType: Prefix
-        - path: /visualizations
-          pathType: Prefix
+        - path: /visualization-api/(.*)
+          pathType: ImplementationSpecific
   tls:
     - hosts:
-        - naavre-dev.minikube.test
-      secretName: naavre-dev-tls
+        - staging.demo.naavre.net
 ```
 
 
@@ -88,8 +83,10 @@ Edit nodes/streamlit/streamlit-deployment-simple.yaml:
 # Within the Deployment spec:
 env:
   - name: API_BASE_URL
-    value: "https://naavre-dev.minikube.test/api"
+    value: "https://staging.demo.naavre.net/visualization-api"
+```
 
+```yaml
 # Add TLS to the Ingress:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -102,14 +99,13 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - naavre-dev.minikube.test
-      secretName: naavre-dev-tls
+        - staging.demo.naavre.net
   rules:
-    - host: naavre-dev.minikube.test
+    - host: staging.demo.naavre.net
       http:
         paths:
-          - path: /
-            pathType: Prefix
+          - path: /visualization-api(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: streamlit-viz
@@ -130,7 +126,7 @@ kubectl apply -f nodes/streamlit/streamlit-deployment-simple.yaml
 ## 7. Verify Installation
 - API Health:
 ```bash
-curl -k https://naavre-dev.minikube.test/visualization-api/healthz
+curl -k https://staging.demo.naavre.net/visualization-api/healthz
 ```
 You should see something like:
 ```json
@@ -138,11 +134,11 @@ You should see something like:
 ```
 
 - Streamlit UI
-Open in your browser: https://naavre-dev.minikube.test/
+Open in your browser: https://staging.demo.naavre.net/
 
 - Dynamic Visualization Nodes
 Run an Argo Workflow and use the returned URL, e.g.:
-https://naavre-dev.minikube.test/…?id=<viz_id>
+https://staging.demo.naavre.net/…?id=<viz_id>
 
 ## Notes & Cleanup
 - TLS Termination

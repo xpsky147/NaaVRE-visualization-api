@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 k8s_manager = K8sResourceManager()
 
-@app.post("/visualizations", response_model=VisualizationResponse)
+@app.post("/visualizations/expose", response_model=VisualizationResponse)
 async def create_visualization(request: VisualizationRequest):
     """
     Deploy a visualization service.
