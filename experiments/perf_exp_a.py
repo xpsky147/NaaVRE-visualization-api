@@ -4,12 +4,12 @@ import os, asyncio, time, httpx, subprocess
 # --------------------------------------------
 # Configuration
 # --------------------------------------------
-API = os.getenv("API_URL", "http://localhost:8000")
+API = os.getenv("API_URL", "https://staging.demo.naavre.net/visualization-api")
 NAMESPACE = os.getenv("K8S_NAMESPACE", "default")
 
 SCENARIOS = {
     "jupyter": {
-        "endpoint": "/visualizations",
+        "endpoint": "/visualizations/expose",
         "payload": {
             "name": "perf-jupyter",
             "label": "perf-jupyter",
@@ -22,7 +22,7 @@ SCENARIOS = {
         "label": "perf-jupyter"
     },
     "rshiny": {
-        "endpoint": "/visualizations",
+        "endpoint": "/visualizations/expose",
         "payload": {
             "name": "perf-rshiny",
             "label": "perf-rshiny",

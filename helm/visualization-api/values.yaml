@@ -4,13 +4,13 @@ replicaCount: 1
 
 image:
   repository: xpsky/naavre-visualization-api
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
 
 env:
   INGRESS_DOMAIN: "staging.demo.naavre.net"
-  STREAMLIT_URL: "https://staging.demo.naavre.net/visualization-api"
+  STREAMLIT_URL: "https://staging.demo.naavre.net/visualization-api/streamlit"
   STREAMLIT_DATA_DIR: "/data/api/streamlit_visualizations"
 
 serviceAccount:
@@ -47,8 +47,32 @@ ingress:
   hosts:
     - host: staging.demo.naavre.net
       paths:
-        - path: /visualization-api/(.*)
+        # 1) POST/DELETE /visualization-api/visualizations/...
+        - path: /visualization-api/(visualizations/.*)
           pathType: ImplementationSpecific
+          backend:
+            service:
+              name: viz-test-visualization-api
+              port:
+                number: 80
+
+        # 2) GET /visualization-api/api/visualization/data/...
+        - path: /visualization-api/(api/visualization/data/.*)
+          pathType: ImplementationSpecific
+          backend:
+            service:
+              name: viz-test-visualization-api
+              port:
+                number: 80
+
+        # 3) GET /visualization-api/healthz
+        - path: /visualization-api/(healthz)
+          pathType: ImplementationSpecific
+          backend:
+            service:
+              name: viz-test-visualization-api
+              port:
+                number: 80
   tls:
     - hosts:
         - staging.demo.naavre.net

@@ -20,7 +20,7 @@ spec:
         image: xpsky/streamlit-viz:latest
         env:
         - name: API_BASE_URL
-          value: "https://staging.demo.naavre.net/visualization-api"
+          value: "http://viz-test-visualization-api"
         ports:
         - containerPort: 8501
         resources:
@@ -33,13 +33,13 @@ spec:
         # Optional: add health checks for readiness and liveness
         readinessProbe:
           httpGet:
-            path: /visualization-api
+            path: /visualization-api/streamlit
             port: 8501
           initialDelaySeconds: 10
           periodSeconds: 5
         livenessProbe:
           httpGet:
-            path: /visualization-api
+            path: /visualization-api/streamlit
             port: 8501
           initialDelaySeconds: 15
           periodSeconds: 10
@@ -63,6 +63,7 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: nginx
   tls:
@@ -72,7 +73,7 @@ spec:
     - host: staging.demo.naavre.net
       http:
         paths:
-          - path: /visualization-api(/|$)(.*)
+          - path: /visualization-api/streamlit(/|$)(.*)
             pathType: ImplementationSpecific
             backend:
               service:

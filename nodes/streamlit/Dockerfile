@@ -8,4 +8,4 @@ COPY viz_app.py .
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "viz_app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.baseUrlPath=/visualization-api"]
+CMD ["streamlit", "run", "viz_app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.baseUrlPath=/visualization-api/streamlit"]

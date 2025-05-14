@@ -46,7 +46,7 @@ kubectl -n visualization create secret tls naavre-dev-tls \
   --cert=fullchain.pem --key=privkey.pem
 ```
 
-## 2. Configure Helm Chart (helm/visualization-api/values.yaml)
+## 3. Configure Helm Chart (helm/visualization-api/values.yaml)
 ### What to set
 - INGRESS_DOMAIN: The Host domain that the Ingress Controller listens on to expose API & Visualizations URLs to the public.
 - STREAMLIT_URL: The Streamlit Service Base URL that the API returns to the user. 
@@ -56,7 +56,7 @@ kubectl -n visualization create secret tls naavre-dev-tls \
 ```yaml
 env:
   INGRESS_DOMAIN: "staging.demo.naavre.net"
-  STREAMLIT_URL: "https://staging.demo.naavre.net/visualization-api"
+  STREAMLIT_URL: "https://staging.demo.naavre.net/visualization-api/streamlit"
 ```
 
 - Ingress TLS: secretName must match the TLS Secret in the same namespace.
@@ -68,26 +68,23 @@ ingress:
     nginx.ingress.kubernetes.io/rewrite-target: "/$1"
   hosts:
     - host: staging.demo.naavre.net
-      paths:
-        - path: /visualization-api/(.*)
-          pathType: ImplementationSpecific
+  ...
   tls:
     - hosts:
         - staging.demo.naavre.net
 ```
 
 
-## 3. Configure Streamlit Deployment (nodes/streamlit/streamlit-deployment-simple.yaml)
+## 4. Configure Streamlit Deployment (nodes/streamlit/streamlit-deployment-simple.yaml)
 Edit nodes/streamlit/streamlit-deployment-simple.yaml:
-```yaml
+<!-- ```yaml
 # Within the Deployment spec:
 env:
   - name: API_BASE_URL
     value: "https://staging.demo.naavre.net/visualization-api"
-```
+``` -->
 
 ```yaml
-# Add TLS to the Ingress:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -95,6 +92,7 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: nginx
   tls:
@@ -104,7 +102,7 @@ spec:
     - host: staging.demo.naavre.net
       http:
         paths:
-          - path: /visualization-api(/|$)(.*)
+          - path: /visualization-api/streamlit(/|$)(.*)
             pathType: ImplementationSpecific
             backend:
               service:
@@ -113,13 +111,13 @@ spec:
                   number: 80
 ```
 
-## 4. Deploy Visualization-API
+## 5. Deploy Visualization-API
 ```bash
 helm install viz-test helm/visualization-api \
   --values helm/visualization-api/values.yaml
 ```
 
-## 5. Deploy Streamlit Service
+## 6. Deploy Streamlit Service
 ```bash
 kubectl apply -f nodes/streamlit/streamlit-deployment-simple.yaml
 ```
@@ -134,11 +132,11 @@ You should see something like:
 ```
 
 - Streamlit UI
-Open in your browser: https://staging.demo.naavre.net/
+Open in your browser: https://staging.demo.naavre.net/visualization-api/streamlit
 
 - Dynamic Visualization Nodes
 Run an Argo Workflow and use the returned URL, e.g.:
-https://staging.demo.naavre.net/…?id=<viz_id>
+https://staging.demo.naavre.net/visualization-api/streamlit/…?id=<viz_id>
 
 ## Notes & Cleanup
 - TLS Termination
