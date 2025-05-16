@@ -20,7 +20,7 @@ spec:
         image: xpsky/streamlit-viz:latest
         env:
         - name: API_BASE_URL
-          value: "http://viz-test-visualization-api"
+          value: "https://staging.demo.naavre.net/visualization-api"
         ports:
         - containerPort: 8501
         resources:

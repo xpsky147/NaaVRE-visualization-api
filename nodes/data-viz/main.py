@@ -121,6 +121,11 @@ def prepare_scientific_visualization(data):
                 "data": results.get("data_points", [])
             }
 
+    elif "feature_means_points" in results:
+        chart_type = "bar"
+        chart_data = {
+            "data": results["feature_means_points"]
+        }
     else:
         # Generic data format
         if "data_points" in results:
