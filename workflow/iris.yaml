@@ -1,0 +1,101 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: scientific-visualization-iris
+spec:
+  volumeClaimTemplates:
+  - metadata:
+      name: workdir
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+
+  entrypoint: main
+  templates:
+  - name: main
+    steps:
+    - - name: data-prep
+        template: run-data-prep
+        arguments:
+          parameters:
+          - name: output-file
+            value: "/workdir/iris.csv"
+    - - name: scientific-computation
+        template: run-scientific-computation
+        arguments:
+          parameters:
+          - name: input-file
+            value: "/workdir/iris.csv"
+          - name: output-file
+            value: "/workdir/results.json"
+    - - name: visualization
+        template: run-data-viz
+        arguments:
+          parameters:
+          - name: input-file
+            value: "/workdir/results.json"
+          - name: output-file
+            value: "/workdir/visualization-url.txt"
+          - name: visualization-type
+            value: "scientific"
+
+    outputs:
+      parameters:
+      - name: visualization-url
+        valueFrom:
+          parameter: "{{steps.visualization.outputs.parameters.visualization-url}}"
+
+  - name: run-data-prep
+    inputs:
+      parameters:
+      - name: output-file
+    container:
+      image: xpsky/data-prep:latest
+      command: ["python", "/app/data-prep.py"]
+      args: ["{{inputs.parameters.output-file}}"]
+      volumeMounts:
+      - name: workdir
+        mountPath: /workdir
+
+  - name: run-scientific-computation
+    inputs:
+      parameters:
+      - name: input-file
+      - name: output-file
+    container:
+      image: xpsky/scientific-computation:latest
+      command: ["python", "/app/compute.py"]
+      args:
+      - "--input={{inputs.parameters.input-file}}"
+      - "--output={{inputs.parameters.output-file}}"
+      volumeMounts:
+      - name: workdir
+        mountPath: /workdir
+
+  # 可视化节点保持和原有一致
+  - name: run-data-viz
+    inputs:
+      parameters:
+      - name: input-file
+      - name: output-file
+      - name: visualization-type
+    outputs:
+      parameters:
+      - name: visualization-url
+        valueFrom:
+          path: /workdir/visualization-url.txt
+    container:
+      image: xpsky/data-viz:latest
+      command: ["python", "/app/main.py"]
+      args:
+      - "--input={{inputs.parameters.input-file}}"
+      - "--output={{inputs.parameters.output-file}}"
+      - "--type={{inputs.parameters.visualization-type}}"
+      env:
+      - name: API_URL
+        value: "http://viz-test-visualization-api"
+      volumeMounts:
+      - name: workdir
+        mountPath: /workdir

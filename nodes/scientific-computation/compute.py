@@ -187,16 +187,53 @@ def simulate_default_experiment(params):
     }
 
 def main():
-    """Main function: parse arguments, run simulation, save result."""
     parser = argparse.ArgumentParser(description="Scientific experiment simulator")
-    parser.add_argument("--type", required=True, help="Experiment type")
-    parser.add_argument("--params", required=True, help="Parameters as JSON string")
+    parser.add_argument("--type", required=False, help="Experiment type")
+    parser.add_argument("--params", required=False, help="Parameters as JSON string")
     parser.add_argument("--output", required=True, help="Output file path")
+    parser.add_argument("--input", required=False, help="Input CSV file")
 
     args = parser.parse_args()
 
     try:
-        result = simulate_experiment(args.type, args.params)
+        if args.input:  # 如果指定了 input，走 CSV 分析分支
+            df = pd.read_csv(args.input)
+            # 自动识别类别列
+            species_col = None
+            for col in df.columns:
+                if col.lower() in ["species", "class", "target"]:
+                    species_col = col
+                    break
+            if not species_col:
+                raise ValueError("CSV文件中未找到 species/class/target 列")
+            # 计算各类别的各特征均值
+            mean_values = df.groupby(species_col).mean(numeric_only=True)
+            feature_means_points = []
+            for feature in mean_values.columns:
+                for species in mean_values.index:
+                    feature_means_points.append({
+                        "feature": feature,
+                        "species": species,
+                        "mean": mean_values.loc[species, feature]
+                    })
+            # 构建输出结果，推荐 bar 分组柱状图
+            result = {
+                "metadata": {
+                    "experiment_type": "Iris Data Analysis",
+                    "parameters": {}
+                },
+                "results": {
+                    "feature_means_points": feature_means_points
+                },
+                "visualization_hints": {
+                    "recommended_charts": ["bar"],
+                    "x_axis": "feature",
+                    "y_axis": "mean",
+                    "color": "species"
+                }
+            }
+        else:  # 没有input，保持原有仿真
+            result = simulate_experiment(args.type, args.params)
         os.makedirs(os.path.dirname(args.output), exist_ok=True)
         with open(args.output, 'w') as f:
             json.dump(result, f, indent=2)

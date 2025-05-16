@@ -36,11 +36,35 @@ def create_chart(chart_type, data, layout):
     Data should be either a list of dicts or {x:[], y:[]}.
     """
     try:
-        # Handle list-of-dicts format
         if "data" in data and isinstance(data["data"], list):
             df = pd.DataFrame(data["data"])
+            # 自动识别"特征均值分组柱状图"
+            if set(["feature", "species", "mean"]).issubset(df.columns):
+                fig = px.bar(
+                    df,
+                    x="feature",
+                    y="mean",
+                    color="species",
+                    barmode="group",
+                    title=layout.get("title", "")
+                )
+                # Axis label设置
+                if layout:
+                    if "xaxis_title" in layout:
+                        fig.update_xaxes(title_text=layout["xaxis_title"])
+                    if "yaxis_title" in layout:
+                        fig.update_yaxes(title_text=layout["yaxis_title"])
+                return fig
+            # 否则，继续兼容通用list-of-dict情况
+            # 比如data为{"data":[{"x":1,"y":2},...]}
+            elif set(["x", "y"]).issubset(df.columns):
+                pass  # 走到后面chart_type分支
+            else:
+                st.error("Unrecognized list-of-dict data structure")
+                st.json(data)
+                return None
+
         elif "x" in data and "y" in data:
-            # Handle x/y array format
             df = pd.DataFrame({
                 "x": data["x"],
                 "y": data["y"]
@@ -54,7 +78,7 @@ def create_chart(chart_type, data, layout):
             st.error("Data is empty")
             return None
 
-        # Create chart based on type
+        # chart_type通用分支
         if chart_type == "line":
             fig = px.line(df, x="x", y="y", title=layout.get("title", ""))
         elif chart_type == "bar":
@@ -67,7 +91,7 @@ def create_chart(chart_type, data, layout):
             st.warning(f"Unsupported chart type: {chart_type}")
             return None
 
-        # Apply layout settings (axis labels)
+        # Axis label设置
         if layout:
             if "xaxis_title" in layout:
                 fig.update_xaxes(title_text=layout["xaxis_title"])
