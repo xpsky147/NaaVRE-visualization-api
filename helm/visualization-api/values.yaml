@@ -48,7 +48,7 @@ ingress:
     - host: staging.demo.naavre.net
       paths:
         # 1) POST/DELETE /visualization-api/visualizations/...
-        - path: /visualization-api/(visualizations/.*)
+        - path: /visualization-api/(visualizations(|/.*))
           pathType: ImplementationSpecific
           backend:
             service:
